@@ -1,3 +1,11 @@
+# Database config file
+database.ini
+
+# Data files
+*.csv
+*.dsv
+*.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
