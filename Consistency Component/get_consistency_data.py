@@ -10,6 +10,7 @@ params = config()
 # Get yesterday's date to ensure we're collecting the right data.
 today     = datetime.datetime.today().date()
 yesterday = today - datetime.timedelta(days = 1)
+one_week  = yesterday - datetime.timedelta(days = 7)
 
 # Load the list of deployed devices.
 user_file        = open('../deployed_devices.txt',"r") 
@@ -31,20 +32,24 @@ if len(deployed_devices) == 1:
     deployed_devices = deployed_devices[0]
     
     query = """
-            SELECT "angle", "clientDate", "sessionId"
+            SELECT "deviceId", "sessionId", "clientDate", "activity", "state", "text"
             FROM status_patientdata
-            WHERE "deviceId" = '{}';
-            """.format(deployed_devices)
+            WHERE "deviceId" = '{}'
+            AND "clientDate" > '{} 00:00:00'::timestamp
+            AND "clientDate" < '{} 23:59:59'::timestamp;
+            """.format(deployed_devices, one_week, yesterday)
 
 else:
 
     deployed_devices = str(deployed_devices)
 
     query = """
-            SELECT "angle", "clientDate", "sessionId"
+            SELECT "deviceId", "sessionId", "clientDate", "activity", "state", "text"
             FROM status_patientdata
-            WHERE "deviceId" in {};
-            """.format(deployed_devices)
+            WHERE "deviceId" in {}
+            AND "clientDate" > '{} 00:00:00'::timestamp
+            AND "clientDate" < '{} 23:59:59'::timestamp;
+            """.format(deployed_devices, one_week, yesterday)
 
 cur.execute(query)
 
@@ -56,7 +61,7 @@ rows     = cur.fetchall()
 rows_df = pd.DataFrame(rows, columns = colnames)
 
 print('Saving the file.....')
-data_file = './data/rom_data.txt'
+data_file = './data/user_use_data.txt'
 rows_df.to_csv(data_file, sep = '|', index = False)
 
 if conn is not None:
