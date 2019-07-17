@@ -13,11 +13,6 @@ data_frame = pd.read_csv(data_file, sep = '|')
 
 data_frame['clientDate'] = pd.to_datetime(data_frame['clientDate']).dt.round('1s')
 
-# Delete all data points that have that weird issue of having a client date in 2013.
-start_time = datetime.datetime(2015, 1, 1, 0, 0, 0)
-start_time = start_time.replace(tzinfo=pytz.utc)
-data_frame = data_frame[data_frame['clientDate'] > start_time]
-
 # Clip the timestamps and remove duplicates.
 # This helps us weed out the time points that are from the inactive periods for the device. 
 data_frame = data_frame.drop_duplicates()
@@ -26,10 +21,12 @@ data_frame = data_frame.sort_values(by = ['clientDate'])
 # Get a list of unique sessions
 sessions = data_frame['sessionId'].unique()
 
-rom_min_list = []
-rom_max_list = []
-session_list = []
-start_time_list   = []
+rom_min_list        = []
+rom_max_list        = []
+session_list        = []
+start_time_list     = []
+session_date_list   = []
+session_device_list = [] 
 
 suspect_sessions = []
 
@@ -38,6 +35,7 @@ for session in sessions:
 
     session_angles = data_frame[data_frame['sessionId'] == session]['angle'].values
     start_time     = data_frame[data_frame['sessionId'] == session]['clientDate'].min()
+
     # Compute the upper and lower 0.5 percentile so that we can do a basic filter of instantaneous garbage data
     upper_percentile = np.percentile(session_angles, 99.5)
     lower_percentile = np.percentile(session_angles, 0.5)
@@ -63,12 +61,16 @@ for session in sessions:
 
     if not rom_min == rom_max:
 
+        session_date   = data_frame[data_frame['sessionId'] == session]['clientDate'].dt.date.tolist()[0]
+        session_device = data_frame[data_frame['sessionId'] == session]['deviceId'].tolist()[0]
         rom_min_list.append(rom_min)
         rom_max_list.append(rom_max)
         session_list.append(session)
+        session_date_list.append(session_date)
+        session_device_list.append(session_device)
 
 # Push the min ROM and max ROM data to a data frame so that we can save it neatly.
-column_list = ['session_id', 'rom_min', 'rom_max']
+column_list = ['device_id', 'session_id', 'session_date', 'rom_min', 'rom_max']
 
 session_rom_list = []
 
@@ -80,8 +82,10 @@ for i in range(N):
     session  = session_list[i]
     rom_min  = rom_min_list[i]
     rom_max  = rom_max_list[i]
+    device   = session_device_list[i]
+    date     = session_date_list[i]
     
-    session_rom_list.append([session, rom_min, rom_max])
+    session_rom_list.append([device, session, date, rom_min, rom_max])
 
 session_rom_table = pd.DataFrame(session_rom_list, columns = column_list)
 

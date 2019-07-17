@@ -7,10 +7,8 @@ from config import *
 # Get the configuration parameters for the database connection.
 params = config()
 
-# Get yesterday's date to ensure we're collecting the right data.
-today     = datetime.datetime.today().date()
-yesterday = today - datetime.timedelta(days = 1)
-one_week  = yesterday - datetime.timedelta(days = 7)
+# Store date in January 2016.  Any data before then is not actually valid.
+cutoff_date     = datetime.date(2016, 1, 1)
 
 # Load the list of deployed devices.
 user_file        = open('../deployed_devices.txt',"r") 
@@ -35,9 +33,8 @@ if len(deployed_devices) == 1:
             SELECT "deviceId", "sessionId", "clientDate", "activity", "state", "text"
             FROM status_patientdata
             WHERE "deviceId" = '{}'
-            AND "clientDate" > '{} 00:00:00'::timestamp
-            AND "clientDate" < '{} 23:59:59'::timestamp;
-            """.format(deployed_devices, one_week, yesterday)
+            AND "clientDate" > '{} 00:00:00'::timestamp;
+            """.format(deployed_devices, cutoff_date)
 
 else:
 
@@ -47,9 +44,8 @@ else:
             SELECT "deviceId", "sessionId", "clientDate", "activity", "state", "text"
             FROM status_patientdata
             WHERE "deviceId" in {}
-            AND "clientDate" > '{} 00:00:00'::timestamp
-            AND "clientDate" < '{} 23:59:59'::timestamp;
-            """.format(deployed_devices, one_week, yesterday)
+            AND "clientDate" > '{} 00:00:00'::timestamp;
+            """.format(deployed_devices, cutoff_date)
 
 cur.execute(query)
 

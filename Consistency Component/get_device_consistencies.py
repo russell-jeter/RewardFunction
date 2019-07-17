@@ -206,6 +206,8 @@ session_duration_device_user_table = pd.DataFrame(session_duration_device_user_l
 device_list = np.unique(device_list)
 consistency_list = []
 
+active_date_list = []
+
 for device in device_list:
     
     days_active = 0.
@@ -215,16 +217,30 @@ for device in device_list:
 
         date_active_sum = session_duration_device_user_table[session_duration_device_user_table['start_time'] == date]['active_duration'].sum()
         if date_active_sum >= 1.0:
-            days_active = days_active + 1
-    
-    consistency_list.append(days_active / 7.0)
-
-device_consistency_list = []
-for i in range(len(device_list)):
-    device_consistency_list.append([device_list[i], consistency_list[i]])
+            active_date_list.append([device, date, 1])
+        else:
+            active_date_list.append([device, date, 0])
 
 
-column_list = ['device_id', 'consistency']
-device_consistency_table = pd.DataFrame(device_consistency_list, columns = column_list)
+column_list = ['device_id', 'date', 'active']
+active_date_table = pd.DataFrame(active_date_list, columns = column_list)
+consistency_list = []
+one_week   = datetime.timedelta(days = 7)
+
+for device in device_list:
+
+    device_active_frame = active_date_table[active_date_table['device_id'] == device]
+
+    for index, row in device_active_frame.iterrows():
+        date = row['date']
+        active = row['active']
+        one_week_mask  = (date - one_week  < device_active_frame['date']) & (device_active_frame['date'] <= date)
+
+        # Sum up active durations over the last week.
+        consistency = device_active_frame.loc[one_week_mask]['active'].sum()/7.0
+        consistency_list.append([device, date, consistency, active])
+
+column_list = ['device_id', 'date', 'consistency', 'active']
+device_consistency_table = pd.DataFrame(consistency_list, columns = column_list)
 
 device_consistency_table.to_csv('./data/device_consistencies.txt', sep = '|', index = False)

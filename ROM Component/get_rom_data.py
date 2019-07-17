@@ -7,9 +7,8 @@ from config import *
 # Get the configuration parameters for the database connection.
 params = config()
 
-# Get yesterday's date to ensure we're collecting the right data.
-today     = datetime.datetime.today().date()
-yesterday = today - datetime.timedelta(days = 1)
+# Store date in January 2016.  Any data before then is not actually valid.
+cutoff_date     = datetime.date(2016, 1, 1)
 
 # Load the list of deployed devices.
 user_file        = open('../deployed_devices.txt',"r") 
@@ -31,20 +30,21 @@ if len(deployed_devices) == 1:
     deployed_devices = deployed_devices[0]
     
     query = """
-            SELECT "angle", "clientDate", "sessionId"
+            SELECT "angle", "clientDate", "sessionId", "deviceId"
             FROM status_patientdata
-            WHERE "deviceId" = '{}';
-            """.format(deployed_devices)
-
+            WHERE "deviceId" = '{}'
+            AND "clientDate" > '{} 00:00:00'::timestamp;
+            """.format(deployed_devices, cutoff_date)
 else:
 
     deployed_devices = str(deployed_devices)
 
     query = """
-            SELECT "angle", "clientDate", "sessionId"
+            SELECT "angle", "clientDate", "sessionId", "deviceId"
             FROM status_patientdata
-            WHERE "deviceId" in {};
-            """.format(deployed_devices)
+            WHERE "deviceId" in {}
+            AND "clientDate" > '{} 00:00:00'::timestamp;
+            """.format(deployed_devices, cutoff_date)
 
 cur.execute(query)
 
