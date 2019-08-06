@@ -1,11 +1,18 @@
-import psycopg2
+"""Tutorial for using pandas and the InfluxDB client."""
+
 import pandas as pd
 import datetime
 
-from config import *
+from influxdb import DataFrameClient
+from influx_config import config
 
-# Get the configuration parameters for the database connection.
 params = config()
+
+host     = params['host']
+port     = params['port']
+database = params['database']
+user     = params['user']
+password = params['password']
 
 # Store date in January 2016.  Any data before then is not actually valid.
 cutoff_date     = datetime.date(2016, 1, 1)
@@ -19,46 +26,37 @@ user_file.close()
 deployed_devices = [line.rstrip("\r\n") for line in deployed_devices]
 deployed_devices = tuple(deployed_devices)
 
-# connect to the PostgreSQL server
-print('Connecting to the PostgreSQL database...')
-conn = psycopg2.connect(**params)
-cur  = conn.cursor()
 
-print('Performing the query......')
-if len(deployed_devices) == 1:
+where_device_string = ''
+
+for i in range(len(deployed_devices)):
+    if i == 0:
+
+        where_device_string = "device_id = '{}'".format(deployed_devices[i])
+
+    else:
+
+        where_device_string = where_device_string + " or device_id = '{}'".format(deployed_devices[i])
+
+
+def main():
+
     
-    deployed_devices = deployed_devices[0]
+    """Instantiate the connection to the InfluxDB client."""
+
+    client = DataFrameClient(host, port, user, password, database)
+
+    query = """SELECT * from device 
+    WHERE {} 
+    """.format(where_device_string)
     
-    query = """
-            SELECT "angle", "clientDate", "sessionId", "deviceId"
-            FROM status_patientdata
-            WHERE "deviceId" = '{}'
-            AND "clientDate" > '{} 00:00:00'::timestamp;
-            """.format(deployed_devices, cutoff_date)
-else:
+    result = client.query(query)
 
-    deployed_devices = str(deployed_devices)
+    data_frame = result['device']
 
-    query = """
-            SELECT "angle", "clientDate", "sessionId", "deviceId"
-            FROM status_patientdata
-            WHERE "deviceId" in {}
-            AND "clientDate" > '{} 00:00:00'::timestamp;
-            """.format(deployed_devices, cutoff_date)
+    data_file = './data/rom_data.txt'
+    data_frame.to_csv(data_file, sep = '|', index = True, index_label = 'time')
 
-cur.execute(query)
 
-# Fetch table output from the query.
-colnames = [desc[0] for desc in cur.description]
-rows     = cur.fetchall()
-
-# Convert table returned from the SQL query to a pandas dataframe for saving.
-rows_df = pd.DataFrame(rows, columns = colnames)
-
-print('Saving the file.....')
-data_file = './data/rom_data.txt'
-rows_df.to_csv(data_file, sep = '|', index = False)
-
-if conn is not None:
-    conn.close()
-    print('Database connection closed.')
+if __name__ == '__main__':
+    main()
